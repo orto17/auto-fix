@@ -1,0 +1,28 @@
+name: JFrog Auto-Fix
+description: Automatically creates a fix PR for a vulnerable dependency identified by JFrog
+
+inputs:
+  component_name:
+    description: 'Dependency to fix. Maven format: "groupId:artifactId". NPM format: "packageName".'
+    required: true
+  affected_version:
+    description: 'Currently installed vulnerable version'
+    required: true
+  fix_version:
+    description: 'Version to upgrade to'
+    required: true
+  github_token:
+    description: 'GitHub token with write access to the target repository'
+    required: true
+  base_branch:
+    description: 'Branch to open the PR against'
+    required: false
+    default: 'main'
+
+outputs:
+  pr_url:
+    description: 'URL of the created pull request'
+
+runs:
+  using: docker
+  image: Dockerfile

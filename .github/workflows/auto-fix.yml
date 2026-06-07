@@ -1,0 +1,29 @@
+name: JFrog Auto-Fix
+
+on:
+  repository_dispatch:
+    types: [jfrog-auto-fix]
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.AUTO_FIX_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        run: |
+          git config user.name "jfrog-auto-fix[bot]"
+          git config user.email "auto-fix@jfrog.com"
+
+      - name: Run auto-fix
+        uses: jfrog/auto-fix@v1
+        with:
+          component_name:   ${{ github.event.client_payload.component_name }}
+          affected_version: ${{ github.event.client_payload.affected_version }}
+          fix_version:      ${{ github.event.client_payload.fix_version }}
+          github_token:     ${{ secrets.AUTO_FIX_TOKEN }}
+          base_branch:      ${{ github.event.client_payload.base_branch || 'main' }}
