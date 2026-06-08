@@ -20,7 +20,7 @@ jobs:
           git config user.email "auto-fix@jfrog.com"
 
       - name: Run auto-fix
-        uses: jfrog/auto-fix@v1
+        uses: orto17/auto-fix@v1
         with:
           component_name:   ${{ github.event.client_payload.component_name }}
           affected_version: ${{ github.event.client_payload.affected_version }}
