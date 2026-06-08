@@ -73,6 +73,10 @@ func Run(ctx context.Context, in Inputs) error {
 		if err := os.Chdir(in.WorkspaceDir); err != nil {
 			return fmt.Errorf("failed to chdir to workspace: %w", err)
 		}
+		// Docker runs as a different user than the workspace owner — mark it safe for git.
+		if err := gitExec("config", "--global", "--add", "safe.directory", in.WorkspaceDir); err != nil {
+			return fmt.Errorf("failed to set safe.directory: %w", err)
+		}
 	}
 
 	tech := DetectTechnology(in.ComponentName)
