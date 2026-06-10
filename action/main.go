@@ -11,6 +11,17 @@ import (
 	"github.com/jfrog/jfrog-client-go/utils/log"
 )
 
+// initHome ensures HOME points to a writable directory.
+// GitHub Actions injects HOME=/github/home via docker run -e HOME, which overrides
+// the Dockerfile ENV and is read-only inside the container. The JFrog libraries
+// write to ~/.jfrog/ (plugin cache, logs), so we redirect HOME to /root which
+// the container owns.
+func initHome() {
+	if os.Getenv("HOME") == "/github/home" {
+		_ = os.Setenv("HOME", "/root")
+	}
+}
+
 // initLogger sets the global JFrog logger level from the INPUT_LOG_LEVEL env var.
 // Accepted values (case-insensitive): DEBUG, INFO, WARN, ERROR. Defaults to INFO.
 func initLogger() {
@@ -39,7 +50,9 @@ type Inputs struct {
 }
 
 func ReadInputs() (Inputs, error) {
-	// Initialise the logger first so every subsequent log call respects the configured level.
+	// Fix HOME before anything else so JFrog libraries write to a writable directory.
+	initHome()
+	// Initialise the logger so every subsequent log call respects the configured level.
 	initLogger()
 
 	in := Inputs{

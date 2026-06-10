@@ -27,3 +27,4 @@ jobs:
           fix_version:      ${{ github.event.client_payload.fix_version }}
           github_token:     ${{ secrets.AUTO_FIX_TOKEN }}
           base_branch:      ${{ github.event.client_payload.base_branch || 'main' }}
+          log_level:        ${{ github.event.client_payload.log_level || 'INFO' }}
