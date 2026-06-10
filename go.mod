@@ -2,10 +2,16 @@ module github.com/jfrog/auto-fix
 
 go 1.26.3
 
+// Keep cyclonedx-go pinned to v0.10.0 to match the version used by
+// jfrog-cli-security (and therefore the xray-scan-plugin binary).
+// The plugin communicates via gob RPC, so struct layouts must match exactly.
+replace github.com/CycloneDX/cyclonedx-go => github.com/CycloneDX/cyclonedx-go v0.10.0
+
 require (
 	github.com/CycloneDX/cyclonedx-go v0.11.0
 	github.com/google/go-github/v45 v45.2.0
 	github.com/jfrog/jfrog-cli-security v1.30.0
+	github.com/jfrog/jfrog-client-go v1.55.1-0.20260603130552-af1dd449b994
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
 	golang.org/x/oauth2 v0.36.0
@@ -46,7 +52,6 @@ require (
 	github.com/jfrog/gofrog v1.7.6 // indirect
 	github.com/jfrog/jfrog-apps-config v1.0.1 // indirect
 	github.com/jfrog/jfrog-cli-core/v2 v2.60.1-0.20260609101026-df3091b39d06 // indirect
-	github.com/jfrog/jfrog-client-go v1.55.1-0.20260603130552-af1dd449b994 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
