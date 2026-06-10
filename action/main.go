@@ -27,8 +27,12 @@ func initHome() {
 // We pass os.Stdout explicitly so every level (including DEBUG) appears in the
 // same stream that GitHub Actions captures and displays in the run log.
 func initLogger() {
+	rawLevel := os.Getenv("INPUT_LOG_LEVEL")
+	// Bypass the JFrog logger for this diagnostic so it's always visible.
+	fmt.Fprintf(os.Stdout, "[auto-fix] INPUT_LOG_LEVEL=%q\n", rawLevel)
+
 	level := log.INFO
-	switch strings.ToUpper(os.Getenv("INPUT_LOG_LEVEL")) {
+	switch strings.ToUpper(rawLevel) {
 	case "DEBUG":
 		level = log.DEBUG
 	case "WARN":
