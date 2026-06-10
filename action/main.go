@@ -24,6 +24,8 @@ func initHome() {
 
 // initLogger sets the global JFrog logger level from the INPUT_LOG_LEVEL env var.
 // Accepted values (case-insensitive): DEBUG, INFO, WARN, ERROR. Defaults to INFO.
+// We pass os.Stdout explicitly so every level (including DEBUG) appears in the
+// same stream that GitHub Actions captures and displays in the run log.
 func initLogger() {
 	level := log.INFO
 	switch strings.ToUpper(os.Getenv("INPUT_LOG_LEVEL")) {
@@ -34,7 +36,7 @@ func initLogger() {
 	case "ERROR":
 		level = log.ERROR
 	}
-	log.SetLogger(log.NewLogger(level, nil))
+	log.SetLogger(log.NewLogger(level, os.Stdout))
 }
 
 type Inputs struct {
