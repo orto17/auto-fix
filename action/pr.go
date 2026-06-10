@@ -60,8 +60,10 @@ func CreateFixPR(ctx context.Context, cfg PRConfig) (prURL string, err error) {
 		return "", fmt.Errorf("failed to commit: %w", err)
 	}
 
-	log.Debug(fmt.Sprintf("Pushing branch '%s' to origin", branchName))
-	if err = gitExec("push", "origin", branchName); err != nil {
+	// Force-push: the remote branch may exist from a previous run whose PR was closed
+	// without deleting the branch. We always own auto-fix/* branches so forcing is safe.
+	log.Debug(fmt.Sprintf("Force-pushing branch '%s' to origin", branchName))
+	if err = gitExec("push", "--force", "origin", branchName); err != nil {
 		return "", fmt.Errorf("failed to push branch '%s': %w", branchName, err)
 	}
 	log.Info(fmt.Sprintf("Branch '%s' pushed to origin", branchName))
