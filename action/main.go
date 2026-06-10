@@ -7,9 +7,25 @@ import (
 	"strings"
 
 	"github.com/jfrog/auto-fix/action/packageupdaters"
+	"github.com/jfrog/jfrog-cli-security/utils/techutils"
+	"github.com/jfrog/jfrog-client-go/utils/log"
 )
 
-// Inputs holds the action inputs read from environment variables set by GitHub Actions.
+// initLogger sets the global JFrog logger level from the INPUT_LOG_LEVEL env var.
+// Accepted values (case-insensitive): DEBUG, INFO, WARN, ERROR. Defaults to INFO.
+func initLogger() {
+	level := log.INFO
+	switch strings.ToUpper(os.Getenv("INPUT_LOG_LEVEL")) {
+	case "DEBUG":
+		level = log.DEBUG
+	case "WARN":
+		level = log.WARN
+	case "ERROR":
+		level = log.ERROR
+	}
+	log.SetLogger(log.NewLogger(level, nil))
+}
+
 type Inputs struct {
 	ComponentName   string
 	AffectedVersion string
@@ -19,9 +35,13 @@ type Inputs struct {
 	RepoName        string
 	BaseBranch      string
 	WorkspaceDir    string
+	LogLevel        string
 }
 
 func ReadInputs() (Inputs, error) {
+	// Initialise the logger first so every subsequent log call respects the configured level.
+	initLogger()
+
 	in := Inputs{
 		ComponentName:   os.Getenv("INPUT_COMPONENT_NAME"),
 		AffectedVersion: os.Getenv("INPUT_AFFECTED_VERSION"),
@@ -29,9 +49,9 @@ func ReadInputs() (Inputs, error) {
 		GitHubToken:     os.Getenv("INPUT_GITHUB_TOKEN"),
 		BaseBranch:      os.Getenv("INPUT_BASE_BRANCH"),
 		WorkspaceDir:    os.Getenv("GITHUB_WORKSPACE"),
+		LogLevel:        os.Getenv("INPUT_LOG_LEVEL"),
 	}
 
-	// GITHUB_REPOSITORY is "owner/repo"
 	repo := os.Getenv("GITHUB_REPOSITORY")
 	parts := strings.SplitN(repo, "/", 2)
 	if len(parts) == 2 {
@@ -69,24 +89,33 @@ func (in Inputs) validate() error {
 
 // Run is the main action logic.
 func Run(ctx context.Context, in Inputs) error {
+	log.Debug(fmt.Sprintf("Log level: %s", in.LogLevel))
+	log.Info(fmt.Sprintf("Starting auto-fix for component '%s' (%s → %s) in %s/%s",
+		in.ComponentName, in.AffectedVersion, in.FixVersion, in.RepoOwner, in.RepoName))
+
 	if in.WorkspaceDir != "" {
+		log.Debug(fmt.Sprintf("Changing working directory to workspace: %s", in.WorkspaceDir))
 		if err := os.Chdir(in.WorkspaceDir); err != nil {
 			return fmt.Errorf("failed to chdir to workspace: %w", err)
 		}
 		// Docker runs as a different user than the workspace owner — mark it safe for git.
+		log.Debug("Marking workspace as git safe.directory")
 		if err := gitExec("config", "--global", "--add", "safe.directory", in.WorkspaceDir); err != nil {
 			return fmt.Errorf("failed to set safe.directory: %w", err)
 		}
 	}
 
-	tech := DetectTechnology(in.ComponentName)
-	fmt.Printf("Detected technology: %s\n", tech)
-
-	descriptorPaths, err := LocateDescriptors(tech)
+	log.Info(fmt.Sprintf("Scanning project to locate '%s@%s' in dependency tree...", in.ComponentName, in.AffectedVersion))
+	descriptorPaths, err := FindDescriptorPaths(in.WorkspaceDir, in.ComponentName, in.AffectedVersion)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Found descriptor files: %v\n", descriptorPaths)
+
+	updater, err := newUpdater(in.ComponentName)
+	if err != nil {
+		return err
+	}
+	log.Debug(fmt.Sprintf("Selected updater for component '%s'", in.ComponentName))
 
 	details := &packageupdaters.FixDetails{
 		ComponentName:   in.ComponentName,
@@ -95,11 +124,12 @@ func Run(ctx context.Context, in Inputs) error {
 		DescriptorPaths: descriptorPaths,
 	}
 
-	updater := newUpdater(tech)
+	log.Info(fmt.Sprintf("Updating '%s' from %s to %s in %d file(s): %v",
+		in.ComponentName, in.AffectedVersion, in.FixVersion, len(descriptorPaths), descriptorPaths))
 	if err = updater.UpdateDependency(details); err != nil {
 		return fmt.Errorf("failed to update dependency: %w", err)
 	}
-	fmt.Printf("Successfully updated %s to %s\n", in.ComponentName, in.FixVersion)
+	log.Info(fmt.Sprintf("Successfully updated '%s' to %s", in.ComponentName, in.FixVersion))
 
 	prURL, err := CreateFixPR(ctx, PRConfig{
 		Token:           in.GitHubToken,
@@ -114,17 +144,29 @@ func Run(ctx context.Context, in Inputs) error {
 		return err
 	}
 
-	fmt.Printf("Pull request created: %s\n", prURL)
-	// Expose as action output
+	log.Info(fmt.Sprintf("Pull request ready: %s", prURL))
 	_ = os.WriteFile(os.Getenv("GITHUB_OUTPUT"), []byte("pr_url="+prURL+"\n"), 0644)
 	return nil
 }
 
-func newUpdater(tech Technology) packageupdaters.PackageUpdater {
+// newUpdater picks the right PackageUpdater based on the component name format.
+// Maven uses "groupId:artifactId"; NPM packages never contain ":".
+func newUpdater(componentName string) (packageupdaters.PackageUpdater, error) {
+	tech := inferTechnology(componentName)
+	log.Debug(fmt.Sprintf("Inferred technology '%s' from component name '%s'", tech, componentName))
 	switch tech {
-	case TechnologyMaven:
-		return &packageupdaters.MavenPackageUpdater{}
+	case techutils.Maven:
+		return &packageupdaters.MavenPackageUpdater{}, nil
+	case techutils.Npm:
+		return &packageupdaters.NpmPackageUpdater{}, nil
 	default:
-		return &packageupdaters.NpmPackageUpdater{}
+		return nil, fmt.Errorf("unsupported technology '%s' for component '%s'", tech, componentName)
 	}
+}
+
+func inferTechnology(componentName string) techutils.Technology {
+	if strings.Contains(componentName, ":") {
+		return techutils.Maven
+	}
+	return techutils.Npm
 }

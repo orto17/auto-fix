@@ -18,6 +18,10 @@ inputs:
     description: 'Branch to open the PR against'
     required: false
     default: 'main'
+  log_level:
+    description: 'Log verbosity level: DEBUG, INFO, WARN, ERROR'
+    required: false
+    default: 'INFO'
 
 outputs:
   pr_url:
