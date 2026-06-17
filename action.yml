@@ -2,6 +2,10 @@ name: JFrog Auto-Fix
 description: Automatically creates a fix PR for a vulnerable dependency identified by JFrog
 
 inputs:
+  version:
+    description: 'JFrog Auto-Fix version to download. Defaults to the latest release.'
+    required: false
+    default: '[RELEASE]'
   component_name:
     description: 'Dependency to fix. Maven format: "groupId:artifactId". NPM format: "packageName".'
     required: true
@@ -28,5 +32,20 @@ outputs:
     description: 'URL of the created pull request'
 
 runs:
-  using: docker
-  image: Dockerfile
+  using: composite
+  steps:
+    - name: Download JFrog Auto-Fix
+      shell: bash
+      run: |
+        bash ${{ github.action_path }}/getAutoFix.sh ${{ inputs.version }}
+
+    - name: Run JFrog Auto-Fix
+      shell: bash
+      env:
+        INPUT_COMPONENT_NAME: ${{ inputs.component_name }}
+        INPUT_AFFECTED_VERSION: ${{ inputs.affected_version }}
+        INPUT_FIX_VERSION: ${{ inputs.fix_version }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_BASE_BRANCH: ${{ inputs.base_branch }}
+        INPUT_LOG_LEVEL: ${{ inputs.log_level }}
+      run: ./jfrog-auto-fix

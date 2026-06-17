@@ -11,26 +11,12 @@ import (
 	"github.com/jfrog/jfrog-client-go/utils/log"
 )
 
-// initHome ensures HOME points to a writable directory.
-// GitHub Actions injects HOME=/github/home via docker run -e HOME, which overrides
-// the Dockerfile ENV and is read-only inside the container. The JFrog libraries
-// write to ~/.jfrog/ (plugin cache, logs), so we redirect HOME to /root which
-// the container owns.
-func initHome() {
-	if os.Getenv("HOME") == "/github/home" {
-		_ = os.Setenv("HOME", "/root")
-	}
-}
-
 // initLogger sets the global JFrog logger level from the INPUT_LOG_LEVEL env var.
 // Accepted values (case-insensitive): DEBUG, INFO, WARN, ERROR. Defaults to INFO.
 // We pass os.Stdout explicitly so every level (including DEBUG) appears in the
 // same stream that GitHub Actions captures and displays in the run log.
 func initLogger() {
 	rawLevel := os.Getenv("INPUT_LOG_LEVEL")
-	// Bypass the JFrog logger for this diagnostic so it's always visible.
-	fmt.Fprintf(os.Stdout, "[auto-fix] INPUT_LOG_LEVEL=%q\n", rawLevel)
-
 	level := log.INFO
 	switch strings.ToUpper(rawLevel) {
 	case "DEBUG":
@@ -56,9 +42,6 @@ type Inputs struct {
 }
 
 func ReadInputs() (Inputs, error) {
-	// Fix HOME before anything else so JFrog libraries write to a writable directory.
-	initHome()
-	// Initialise the logger so every subsequent log call respects the configured level.
 	initLogger()
 
 	in := Inputs{
@@ -116,11 +99,6 @@ func Run(ctx context.Context, in Inputs) error {
 		log.Debug(fmt.Sprintf("Changing working directory to workspace: %s", in.WorkspaceDir))
 		if err := os.Chdir(in.WorkspaceDir); err != nil {
 			return fmt.Errorf("failed to chdir to workspace: %w", err)
-		}
-		// Docker runs as a different user than the workspace owner — mark it safe for git.
-		log.Debug("Marking workspace as git safe.directory")
-		if err := gitExec("config", "--global", "--add", "safe.directory", in.WorkspaceDir); err != nil {
-			return fmt.Errorf("failed to set safe.directory: %w", err)
 		}
 	}
 
