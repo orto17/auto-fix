@@ -102,11 +102,6 @@ func Run(ctx context.Context, in Inputs) error {
 		}
 	}
 
-	log.Info(fmt.Sprintf("Checking out scanned commit %s", in.CommitHash))
-	if err := gitExec("checkout", in.CommitHash); err != nil {
-		return fmt.Errorf("failed to checkout commit %s: %w", in.CommitHash, err)
-	}
-
 	log.Info(fmt.Sprintf("Scanning project to locate '%s@%s' in dependency tree...", in.ComponentName, in.AffectedVersion))
 	descriptorPaths, err := FindDescriptorPaths(in.WorkspaceDir, in.ComponentName, in.AffectedVersion)
 	if err != nil {

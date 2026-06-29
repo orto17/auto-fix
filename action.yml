@@ -36,6 +36,12 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Checkout scanned commit
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.commit_hash }}
+        token: ${{ inputs.github_token }}
+
     - name: Download JFrog Auto-Fix
       shell: bash
       run: |
