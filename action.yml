@@ -18,10 +18,12 @@ inputs:
   github_token:
     description: 'GitHub token with write access to the target repository'
     required: true
-  base_branch:
-    description: 'Branch to open the PR against'
-    required: false
-    default: 'main'
+  branch_name:
+    description: 'Branch the vulnerability was detected on. Used as the PR base.'
+    required: true
+  commit_hash:
+    description: 'Exact commit the scan ran against. The fix branch is created from this commit.'
+    required: true
   log_level:
     description: 'Log verbosity level: DEBUG, INFO, WARN, ERROR'
     required: false
@@ -46,6 +48,7 @@ runs:
         INPUT_AFFECTED_VERSION: ${{ inputs.affected_version }}
         INPUT_FIX_VERSION: ${{ inputs.fix_version }}
         INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
-        INPUT_BASE_BRANCH: ${{ inputs.base_branch }}
+        INPUT_BRANCH_NAME: ${{ inputs.branch_name }}
+        INPUT_COMMIT_HASH: ${{ inputs.commit_hash }}
         INPUT_LOG_LEVEL: ${{ inputs.log_level }}
       run: ./jfrog-auto-fix

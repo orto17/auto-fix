@@ -18,6 +18,7 @@ type PRConfig struct {
 	Owner           string
 	Repo            string
 	BaseBranch      string
+	CommitHash      string
 	ComponentName   string
 	AffectedVersion string
 	FixVersion      string
@@ -73,8 +74,9 @@ func CreateFixPR(ctx context.Context, cfg PRConfig) (prURL string, err error) {
 		"This PR was automatically created by the JFrog auto-fix action.\n\n"+
 			"**Component:** `%s`\n"+
 			"**Affected version:** `%s`\n"+
-			"**Fix version:** `%s`\n",
-		cfg.ComponentName, cfg.AffectedVersion, cfg.FixVersion,
+			"**Fix version:** `%s`\n"+
+			"**Scanned commit:** `%s`\n",
+		cfg.ComponentName, cfg.AffectedVersion, cfg.FixVersion, cfg.CommitHash,
 	)
 
 	log.Debug(fmt.Sprintf("Opening pull request: '%s'", title))

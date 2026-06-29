@@ -36,7 +36,8 @@ type Inputs struct {
 	GitHubToken     string
 	RepoOwner       string
 	RepoName        string
-	BaseBranch      string
+	BranchName      string
+	CommitHash      string
 	WorkspaceDir    string
 	LogLevel        string
 }
@@ -49,7 +50,8 @@ func ReadInputs() (Inputs, error) {
 		AffectedVersion: os.Getenv("INPUT_AFFECTED_VERSION"),
 		FixVersion:      os.Getenv("INPUT_FIX_VERSION"),
 		GitHubToken:     os.Getenv("INPUT_GITHUB_TOKEN"),
-		BaseBranch:      os.Getenv("INPUT_BASE_BRANCH"),
+		BranchName:      os.Getenv("INPUT_BRANCH_NAME"),
+		CommitHash:      os.Getenv("INPUT_COMMIT_HASH"),
 		WorkspaceDir:    os.Getenv("GITHUB_WORKSPACE"),
 		LogLevel:        os.Getenv("INPUT_LOG_LEVEL"),
 	}
@@ -59,10 +61,6 @@ func ReadInputs() (Inputs, error) {
 	if len(parts) == 2 {
 		in.RepoOwner = parts[0]
 		in.RepoName = parts[1]
-	}
-
-	if in.BaseBranch == "" {
-		in.BaseBranch = "main"
 	}
 
 	if err := in.validate(); err != nil {
@@ -77,6 +75,8 @@ func (in Inputs) validate() error {
 		"affected_version": in.AffectedVersion,
 		"fix_version":      in.FixVersion,
 		"github_token":     in.GitHubToken,
+		"branch_name":      in.BranchName,
+		"commit_hash":      in.CommitHash,
 	}
 	for name, val := range required {
 		if val == "" {
@@ -100,6 +100,11 @@ func Run(ctx context.Context, in Inputs) error {
 		if err := os.Chdir(in.WorkspaceDir); err != nil {
 			return fmt.Errorf("failed to chdir to workspace: %w", err)
 		}
+	}
+
+	log.Info(fmt.Sprintf("Checking out scanned commit %s", in.CommitHash))
+	if err := gitExec("checkout", in.CommitHash); err != nil {
+		return fmt.Errorf("failed to checkout commit %s: %w", in.CommitHash, err)
 	}
 
 	log.Info(fmt.Sprintf("Scanning project to locate '%s@%s' in dependency tree...", in.ComponentName, in.AffectedVersion))
@@ -132,7 +137,8 @@ func Run(ctx context.Context, in Inputs) error {
 		Token:           in.GitHubToken,
 		Owner:           in.RepoOwner,
 		Repo:            in.RepoName,
-		BaseBranch:      in.BaseBranch,
+		BaseBranch:      in.BranchName,
+		CommitHash:      in.CommitHash,
 		ComponentName:   in.ComponentName,
 		AffectedVersion: in.AffectedVersion,
 		FixVersion:      in.FixVersion,
